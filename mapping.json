@@ -1,0 +1,41 @@
+{
+  "gender": {
+    "female": 0,
+    "male": 1
+  },
+  "employment_status": {
+    "full_time": 0,
+    "part_time": 1,
+    "self_employed": 2,
+    "unemployed": 3
+  },
+  "past_default": {
+    "no": 0,
+    "yes": 1
+  },
+  "residence_type": {
+    "mortgage": 0,
+    "other": 1,
+    "own": 2,
+    "rent": 3
+  },
+  "education": {
+    "associate": 0,
+    "bachelor": 1,
+    "doctorate": 2,
+    "high school": 3,
+    "master": 4
+  },
+  "loan_intent": {
+    "debt consolidation": 0,
+    "education": 1,
+    "home improvement": 2,
+    "medical": 3,
+    "personal": 4,
+    "venture": 5
+  },
+  "loan_status": {
+    "no": 0,
+    "yes": 1
+  }
+}
