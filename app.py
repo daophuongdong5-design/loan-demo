@@ -2,54 +2,36 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="AI Loan Approval Demo", layout="wide")
-
+st.set_page_config(layout="wide")
 st.title("AI Loan Approval Decision Engine")
 
-# =====================================================
+# ================================
 # LOAD DATA
-# =====================================================
-
-@st.cache_data
-def load_customer():
-
-    df = pd.read_excel("data-test.xlsx", dtype={"national_id": str})
-    df["national_id"] = df["national_id"].astype(str).str.strip()
-
-    return df
-
+# ================================
 
 @st.cache_data
 def load_internal():
-
     df = pd.read_csv("Internal_mock_data_20k.csv", dtype={"national_id": str})
     df["national_id"] = df["national_id"].astype(str).str.strip()
-
     return df
-
 
 @st.cache_data
 def load_cic():
-
     df = pd.read_csv("CIC_mock_data_100k.csv", dtype={"national_id": str})
     df["national_id"] = df["national_id"].astype(str).str.strip()
-
     return df
 
-
-customer_df = load_customer()
 internal_df = load_internal()
 cic_df = load_cic()
 
-# =====================================================
-# CUSTOMER LOOKUP
-# =====================================================
+# ================================
+# LOOKUP
+# ================================
 
 st.header("Customer Lookup")
 
 national_id = st.text_input("Enter National ID")
 
-customer = None
 internal = None
 cic = None
 
@@ -57,237 +39,214 @@ if national_id:
 
     national_id = national_id.strip()
 
-    customer_match = customer_df[customer_df["national_id"] == national_id]
-
-    if not customer_match.empty:
-        customer = customer_match.iloc[0]
-
     internal_match = internal_df[internal_df["national_id"] == national_id]
+    cic_match = cic_df[cic_df["national_id"] == national_id]
 
     if not internal_match.empty:
         internal = internal_match.iloc[0]
 
-    cic_match = cic_df[cic_df["national_id"] == national_id]
-
     if not cic_match.empty:
         cic = cic_match.iloc[0]
 
-    if customer is None:
-
-        st.error("Customer not found in dataset")
-
+    if internal is None and cic is None:
+        st.error("Customer not found in BOTH datasets")
     else:
-
         st.success("Customer Found")
 
-# =====================================================
-# CUSTOMER PROFILE
-# =====================================================
+# ================================
+# PROFILE (fallback từ CIC/Internal)
+# ================================
 
-if customer is not None:
+# ================================
+# CUSTOMER PROFILE (AUTO-FILL)
+# ================================
+
+if internal is not None or cic is not None:
 
     st.header("Customer Profile")
 
-    dob = pd.to_datetime(customer["dob"])
-    age = datetime.now().year - dob.year
+    # ======================
+    # LẤY DATA (PRIORITY)
+    # ======================
 
-    nationality = customer["nationality"]
+    full_name = None
+    dob = None
+    nationality = "Vietnam"  # default
 
+    # Ưu tiên INTERNAL
     if internal is not None:
-        customer_type = "ETB"
-    else:
-        customer_type = "NTB"
+
+        full_name = internal.get("full_name", "Unknown")
+        dob = pd.to_datetime(internal.get("dob", "1990-01-01"))
+        nationality = internal.get("nationality", "Vietnam")
+
+    # fallback CIC nếu thiếu
+    elif cic is not None:
+
+        full_name = cic.get("full_name", "Unknown")
+        dob = pd.to_datetime(cic.get("dob", "1990-01-01"))
+        nationality = cic.get("nationality", "Vietnam")
+
+    # ======================
+    # TÍNH AGE
+    # ======================
+
+    age = datetime.now().year - dob.year if dob is not None else 30
+
+    # ======================
+    # CUSTOMER TYPE
+    # ======================
+
+    customer_type = "ETB" if internal is not None else "NTB"
+
+    # ======================
+    # UI
+    # ======================
 
     col1, col2 = st.columns(2)
 
     with col1:
-
-        st.text_input("Full Name", customer["full_name"], disabled=True)
-        st.text_input("Nationality", nationality, disabled=True)
+        st.text_input("Full Name", value=full_name, disabled=True)
+        st.text_input("Nationality", value=nationality, disabled=True)
 
     with col2:
-
-        st.text_input("Customer Type", customer_type, disabled=True)
-        st.text_input("DOB", str(dob.date()), disabled=True)
+        st.text_input("Customer Type", value=customer_type, disabled=True)
+        st.text_input("DOB", value=str(dob.date()), disabled=True)
 
     st.write("Age:", age)
 
-# =====================================================
-# LOAN INPUT
-# =====================================================
+# ================================
+# INPUT
+# ================================
 
-if customer is not None:
+if internal is not None or cic is not None:
 
-    st.header("Loan Application Input")
+    st.header("Loan Input")
 
-    col1, col2 = st.columns(2)
+    monthly_income = st.number_input("Monthly Income", 0.0)
+    monthly_expenses = st.number_input("Monthly Expenses", 0.0)
+    loan_amount = st.number_input("Loan Amount", 0.0)
 
-    with col1:
+    run = st.button("Run Decision Engine")
 
-        monthly_income = st.number_input("Monthly Income", 0.0)
-        monthly_expenses = st.number_input("Monthly Expenses", 0.0)
-        employment_years = st.number_input("Employment Years", 0)
+# ================================
+# ENGINE
+# ================================
 
-    with col2:
+if (internal is not None or cic is not None) and run:
 
-        employment_status = st.selectbox(
-            "Employment Status",
-            ["Full-time", "Part-time", "Self-employed", "Unemployed"]
-        )
+    st.header("Decision Engine Output")
 
-        loan_amount = st.number_input("Requested Loan Amount", 0.0)
+    # CIC SAFE
+    credit_score = cic.get("credit_score", None) if cic is not None else None
+    max_dpd30 = cic.get("max_dpd30", cic.get("dpd_30", 0)) if cic is not None else 0
+    existing_debt = cic.get(
+        "existing_debt_obligations",
+        cic.get("existing_debt", 0)
+    ) if cic is not None else 0
 
-    run_check = st.button("Check Loan Approval")
+    blacklist = internal.get("is_blacklisted", 0) if internal is not None else 0
 
-# =====================================================
-# DECISION ENGINE
-# =====================================================
-
-if customer is not None and run_check:
-
-    st.header("AI Rule Engine")
-
-    # CIC SAFE READ
-
-    credit_score = None
-    max_dpd30 = 0
-    existing_debt = 0
-
-    if cic is not None:
-
-        credit_score = cic.get("credit_score", None)
-
-        max_dpd30 = cic.get(
-            "max_dpd30",
-            cic.get("dpd_30", 0)
-        )
-
-        existing_debt = cic.get(
-            "existing_debt_obligations",
-            cic.get("existing_debt", 0)
-        )
-
-    # =================================================
+    # =============================
     # LAYER 1
-    # =================================================
+    # =============================
 
-    st.subheader("Layer 1 – Knock-out Rules")
+    st.subheader("Layer 1")
 
     if age < 18 or age > 65:
-
-        st.error("Reject: Age outside 18-65")
-
+        st.error(f"Age = {age} → ❌ Reject")
         st.stop()
+    else:
+        st.success(f"Age = {age} → ✅ Pass")
 
-    if nationality.lower() != "vietnam":
-
-        st.error("Reject: Unsupported nationality")
-
-        st.stop()
-
-    st.success("Layer 1 Passed")
-
-    # =================================================
+    # =============================
     # LAYER 2
-    # =================================================
+    # =============================
 
-    st.subheader("Layer 2 – Internal Data")
+    st.subheader("Layer 2")
 
-    is_blacklisted = 0
-
-    if internal is not None:
-
-        is_blacklisted = internal.get("is_blacklisted", 0)
-
-    st.write("Customer Type:", customer_type)
-
-    if is_blacklisted == 1:
-
-        st.error("Reject: Customer in Internal Blacklist")
-
+    if blacklist == 1:
+        st.error("Blacklist = 1 → ❌ Reject")
         st.stop()
+    else:
+        st.success("Blacklist = 0 → ✅ Pass")
 
-    st.success("Layer 2 Passed")
-
-    # =================================================
+    # =============================
     # LAYER 3
-    # =================================================
+    # =============================
 
-    st.subheader("Layer 3 – CIC Rules")
+    st.subheader("Layer 3")
 
     if max_dpd30 == 1:
-
-        st.error("Reject: Bad CIC repayment history")
-
+        st.error(f"DPD30 = {max_dpd30} → ❌ Reject")
         st.stop()
+    else:
+        st.success(f"DPD30 = {max_dpd30} → ✅ Pass")
 
     if credit_score is None or credit_score <= 430:
-
-        st.error("Reject: Low credit score")
-
+        st.error(f"CIC Score = {credit_score} → ❌ Reject (low score)")
         st.stop()
+    else:
+        st.success(f"CIC Score = {credit_score} → ✅ Pass")
 
-    st.success("Layer 3 Passed")
+    # =============================
+    # LAYER 4 (DTI_1)
+    # =============================
 
-    # =================================================
-    # LAYER 4
-    # =================================================
-
-    st.subheader("Layer 4 – Capacity Rules")
+    st.subheader("Layer 4")
 
     if monthly_income < 500:
-
-        st.error("Reject: Monthly income below minimum")
-
+        st.error(f"Income = {monthly_income} → ❌ Reject (<500)")
         st.stop()
+    else:
+        st.success(f"Income = {monthly_income} → ✅ Pass")
 
-    new_debt = 0.05 * loan_amount
+    dti_1 = existing_debt / monthly_income if monthly_income > 0 else 0
 
-    dti2 = (existing_debt + new_debt) / monthly_income
+    st.write(f"DTI_1 = {round(dti_1,2)}")
 
-    st.write("DTI2:", round(dti2, 2))
-
-    if dti2 >= 0.5:
-
-        st.error("Reject: Debt-to-Income too high")
-
+    if dti_1 >= 0.5:
+        st.error(f"DTI_1 = {round(dti_1,2)} → ❌ Reject")
         st.stop()
+    else:
+        st.success(f"DTI_1 = {round(dti_1,2)} → ✅ Pass")
 
-    approve_prob = min(0.95, (credit_score / 850) + (0.5 - dti2))
+    # ML
+    prob = min(0.95, (credit_score / 850) + (0.5 - dti_1))
 
-    st.write("ML Approval Probability:", round(approve_prob, 2))
+    st.write(f"ML Prob = {round(prob,2)}")
 
-    if approve_prob <= 0.7:
-
-        st.error("Reject: ML risk score too low")
-
+    if prob <= 0.7:
+        st.error(f"ML Prob = {round(prob,2)} → ❌ Reject")
         st.stop()
+    else:
+        st.success(f"ML Prob = {round(prob,2)} → ✅ Pass")
 
-    st.success("Layer 4 Passed")
-
-    # =================================================
-    # FINAL DECISION
-    # =================================================
+    # =============================
+    # FINAL (DTI_2)
+    # =============================
 
     st.header("Final Decision")
+
+    new_debt = 0.05 * loan_amount
+    dti_2 = (existing_debt + new_debt) / monthly_income
+
+    st.write(f"DTI_2 = {round(dti_2,2)}")
 
     approved_limit = (0.5 * monthly_income - existing_debt) / 0.05
 
     if loan_amount <= approved_limit:
-
         decision = "Approve"
         final_amount = loan_amount
 
     elif loan_amount <= approved_limit * 1.5:
-
         decision = "Partial Approve"
         final_amount = approved_limit
 
     else:
-
         decision = "Manual Review"
         final_amount = approved_limit
 
-    st.write("Decision:", decision)
+    st.success(f"{decision}")
 
-    st.write("Approved Loan Amount:", round(final_amount, 2))
+    st.write(f"Approved Amount = {round(final_amount,2)}")
