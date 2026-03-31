@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import joblib
 from datetime import datetime
 
 st.set_page_config(layout="wide")
@@ -212,14 +213,72 @@ if run:
     else:
         st.success(f"DTI_1 = {round(dti_1, 2)} → ✅ Pass")
 
-    # --- ML Probability ---
-    # Cập nhật có sử dụng employment_years như yêu cầu
+    # --- ML Probability from trained model ---
+    import joblib
+
+    @st.cache_resource
+    def load_credit_model():
+        return joblib.load("credit_model.pkl")
+
+    credit_model = load_credit_model()
+
+    # Các biến có sẵn từ app
     cs_dummy = credit_score if credit_score is not None else 500
-    prob = min(0.95, (cs_dummy / 850) + (0.5 - dti_1) + (employment_years * 0.02))
-    
+    credit_history_years = int(cic.get("credit_history_years", 0)) if user_found and cic is not None else 0
+    past_default = int(internal.get("past_default", 0)) if user_found and internal is not None else 0
+
+    # Nếu internal.csv có interest_rate thì lấy, không có thì default
+    raw_interest_rate = internal.get("interest_rate", "18%") if user_found and internal is not None else "18%"
+    interest_rate = float(str(raw_interest_rate).replace("%", ""))
+
+    loan_percent_income = loan_amount / monthly_income if monthly_income > 0 else 0
+    expense_to_income = monthly_expenses / monthly_income if monthly_income > 0 else 0
+    disposable_income = monthly_income - monthly_expenses
+    loan_to_disposable_income = loan_amount / disposable_income if disposable_income > 0 else 999
+
+    # Categorical fields: phải map đúng theo lúc train
+    gender_map = {"Male": 0, "Female": 1}
+    employment_status_map = {
+        "Employed": 0,
+        "Self-Employed": 1,
+        "Business Owner": 2,
+        "Freelancer": 3,
+        "Unemployed": 4,
+        "Student": 5,
+    }
+    residence_type = 0   # default nếu UI chưa có input
+    education = 0        # default nếu UI chưa có input
+    loan_intent = 0      # default nếu UI chưa có input
+    gender = 0           # default nếu UI chưa có input
+
+    X = pd.DataFrame([{
+        "age": age,
+        "gender": gender,
+        "employment_years": employment_years,
+        "employment_status": employment_status_map.get(employment_status, 0),
+        "monthly_income": monthly_income,
+        "monthly_expenses": monthly_expenses,
+        "credit_history_years": credit_history_years,
+        "past_default": past_default,
+        "residence_type": residence_type,
+        "loan_amount": loan_amount,
+        "education": education,
+        "loan_intent": loan_intent,
+        "interest_rate": interest_rate,
+        "loan_percent_income": loan_percent_income,
+        "credit_score": cs_dummy,
+        "expense_to_income": expense_to_income,
+        "disposable_income": disposable_income,
+        "loan_to_disposable_income": loan_to_disposable_income,
+    }])
+
+    # Đảm bảo đúng thứ tự cột mà model đã train
+    X = X[credit_model.feature_names_in_]
+
+    prob = float(credit_model.predict_proba(X)[0, 1])
+
     st.write(f"ML Prob (Loan Status) = {round(prob, 2)}")
 
-    # Theo rule mới, prob < 0.5 sẽ bị Reject cứng
     if prob < 0.5:
         st.error(f"ML Prob = {round(prob, 2)} → ❌ Reject (< 0.5)")
         st.stop()
