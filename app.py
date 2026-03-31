@@ -11,14 +11,21 @@ st.title("AI Loan Approval Decision Engine")
 
 @st.cache_data
 def load_internal():
-    df = pd.read_csv("Internal_mock_data_20k.csv", dtype={"national_id": str})
-    df["national_id"] = df["national_id"].astype(str).str.strip()
+    # Sử dụng try-except phòng trường hợp file chưa tồn tại ở môi trường test
+    try:
+        df = pd.read_csv("Internal_mock_data_20k.csv", dtype={"national_id": str})
+        df["national_id"] = df["national_id"].astype(str).str.strip()
+    except:
+        df = pd.DataFrame(columns=["national_id", "full_name", "dob", "nationality", "is_blacklisted"])
     return df
 
 @st.cache_data
 def load_cic():
-    df = pd.read_csv("CIC_mock_data_100k.csv", dtype={"national_id": str})
-    df["national_id"] = df["national_id"].astype(str).str.strip()
+    try:
+        df = pd.read_csv("CIC_mock_data_100k.csv", dtype={"national_id": str})
+        df["national_id"] = df["national_id"].astype(str).str.strip()
+    except:
+        df = pd.DataFrame(columns=["national_id", "full_name", "dob", "nationality", "credit_score", "max_dpd30", "existing_debt_obligations"])
     return df
 
 internal_df = load_internal()
@@ -34,9 +41,9 @@ national_id = st.text_input("Enter National ID")
 
 internal = None
 cic = None
+user_found = False
 
 if national_id:
-
     national_id = national_id.strip()
 
     internal_match = internal_df[internal_df["national_id"] == national_id]
@@ -49,110 +56,106 @@ if national_id:
         cic = cic_match.iloc[0]
 
     if internal is None and cic is None:
-        st.error("Customer not found in BOTH datasets")
+        st.warning("Customer not found in datasets. Please enter information manually.")
+        user_found = False
     else:
-        st.success("Customer Found")
+        st.success("Customer Found in DB")
+        user_found = True
 
-# ================================
-# PROFILE (fallback từ CIC/Internal)
-# ================================
+# Luôn hiển thị phần Profile dù có hay không để người dùng nhập tay nếu cần
+st.header("Customer Profile")
 
-# ================================
-# CUSTOMER PROFILE (AUTO-FILL)
-# ================================
+# ======================
+# DATA (PRIORITY / MANUAL)
+# ======================
 
-if internal is not None or cic is not None:
-
-    st.header("Customer Profile")
-
-    # ======================
-    # LẤY DATA (PRIORITY)
-    # ======================
-
-    full_name = None
-    dob = None
-    nationality = "Vietnam"  # default
-
-    # Ưu tiên INTERNAL
-    if internal is not None:
-
-        full_name = internal.get("full_name", "Unknown")
-        dob = pd.to_datetime(internal.get("dob", "1990-01-01"))
-        nationality = internal.get("nationality", "Vietnam")
-
-    # fallback CIC nếu thiếu
-    elif cic is not None:
-
-        full_name = cic.get("full_name", "Unknown")
-        dob = pd.to_datetime(cic.get("dob", "1990-01-01"))
-        nationality = cic.get("nationality", "Vietnam")
-
-    # ======================
-    # TÍNH AGE
-    # ======================
-
-    age = datetime.now().year - dob.year if dob is not None else 30
-
-    # ======================
-    # CUSTOMER TYPE
-    # ======================
-
+if user_found:
+    # Lấy data từ DB, ưu tiên Internal
+    full_name_val = internal.get("full_name") if internal is not None else cic.get("full_name", "Unknown")
+    
+    # Xử lý ngày sinh an toàn
+    raw_dob = internal.get("dob") if internal is not None else cic.get("dob", "1990-01-01")
+    dob_val = pd.to_datetime(raw_dob)
+    
+    nationality_val = internal.get("nationality") if internal is not None else cic.get("nationality", "Vietnam")
+    
     customer_type = "ETB" if internal is not None else "NTB"
+    is_disabled = True
+else:
+    # Cho phép nhập tay
+    full_name_val = ""
+    dob_val = datetime(1990, 1, 1)
+    nationality_val = "Vietnam"
+    customer_type = "NTB"
+    is_disabled = False
 
-    # ======================
-    # UI
-    # ======================
+# ======================
+# UI PROFILE
+# ======================
 
-    col1, col2 = st.columns(2)
+col1, col2 = st.columns(2)
 
-    with col1:
-        st.text_input("Full Name", value=full_name, disabled=True)
-        st.text_input("Nationality", value=nationality, disabled=True)
+with col1:
+    full_name = st.text_input("Full Name", value=full_name_val, disabled=is_disabled)
+    nationality = st.text_input("Nationality", value=nationality_val, disabled=is_disabled)
 
-    with col2:
-        st.text_input("Customer Type", value=customer_type, disabled=True)
-        st.text_input("DOB", value=str(dob.date()), disabled=True)
+with col2:
+    st.text_input("Customer Type", value=customer_type, disabled=True)
+    if is_disabled:
+        st.text_input("DOB", value=str(dob_val.date()), disabled=True)
+        dob = dob_val
+    else:
+        dob_input = st.date_input("DOB", value=dob_val.date(), min_value=datetime(1900, 1, 1).date(), max_value=datetime.now().date())
+        dob = pd.to_datetime(dob_input)
 
-    st.write("Age:", age)
+# TÍNH AGE
+age = datetime.now().year - dob.year if dob is not None else 30
+st.write("Age:", age)
 
 # ================================
-# INPUT
+# INPUT LOAN & EMPLOYMENT
 # ================================
 
-if internal is not None or cic is not None:
+st.header("Loan & Employment Input")
 
-    st.header("Loan Input")
-
+col3, col4 = st.columns(2)
+with col3:
     monthly_income = st.number_input("Monthly Income", 0.0)
     monthly_expenses = st.number_input("Monthly Expenses", 0.0)
     loan_amount = st.number_input("Loan Amount", 0.0)
+with col4:
+    employment_years = st.number_input("Employment Years", 0.0, step=0.5, help="Biến phục vụ ML")
+    employment_status = st.selectbox("Employment Status", ["Employed", "Self-Employed", "Business Owner", "Freelancer", "Unemployed", "Student"])
 
-    run = st.button("Run Decision Engine")
+run = st.button("Run Decision Engine")
 
 # ================================
 # ENGINE
 # ================================
 
-if (internal is not None or cic is not None) and run:
-
+if run:
     st.header("Decision Engine Output")
 
-    # CIC SAFE
-    credit_score = cic.get("credit_score", None) if cic is not None else None
-    max_dpd30 = cic.get("max_dpd30", cic.get("dpd_30", 0)) if cic is not None else 0
-    existing_debt = cic.get(
-        "existing_debt_obligations",
-        cic.get("existing_debt", 0)
-    ) if cic is not None else 0
+    # CIC / INTERNAL SAFE DEFAULTS (Nếu NTB nhập tay thì lấy default)
+    credit_score = None
+    max_dpd30 = 0
+    existing_debt = 0
+    blacklist = 0
 
-    blacklist = internal.get("is_blacklisted", 0) if internal is not None else 0
+    if user_found:
+        credit_score = cic.get("credit_score", None) if cic is not None else None
+        # Xử lý trường hợp pd.isna
+        if pd.isna(credit_score):
+            credit_score = None
+            
+        max_dpd30 = cic.get("max_dpd30", cic.get("dpd_30", 0)) if cic is not None else 0
+        existing_debt = cic.get("existing_debt_obligations", cic.get("existing_debt", 0)) if cic is not None else 0
+        blacklist = internal.get("is_blacklisted", 0) if internal is not None else 0
 
     # =============================
-    # LAYER 1
+    # LAYER 1: Tuổi
     # =============================
-
-    st.subheader("Layer 1")
-
+    st.subheader("Layer 1: Age")
     if age < 18 or age > 65:
         st.error(f"Age = {age} → ❌ Reject")
         st.stop()
@@ -160,11 +163,9 @@ if (internal is not None or cic is not None) and run:
         st.success(f"Age = {age} → ✅ Pass")
 
     # =============================
-    # LAYER 2
+    # LAYER 2: Blacklist
     # =============================
-
-    st.subheader("Layer 2")
-
+    st.subheader("Layer 2: Blacklist")
     if blacklist == 1:
         st.error("Blacklist = 1 → ❌ Reject")
         st.stop()
@@ -172,28 +173,29 @@ if (internal is not None or cic is not None) and run:
         st.success("Blacklist = 0 → ✅ Pass")
 
     # =============================
-    # LAYER 3
+    # LAYER 3: DPD & CIC Score
     # =============================
-
-    st.subheader("Layer 3")
-
+    st.subheader("Layer 3: CIC & DPD")
+    
     if max_dpd30 == 1:
         st.error(f"DPD30 = {max_dpd30} → ❌ Reject")
         st.stop()
     else:
         st.success(f"DPD30 = {max_dpd30} → ✅ Pass")
 
-    if credit_score is None or credit_score <= 430:
+    if credit_score is None:
+        st.warning("CIC Score = NULL → ⚠️ No data, check other conditions")
+        # Không dùng st.stop() ở đây nữa
+    elif credit_score <= 430:
         st.error(f"CIC Score = {credit_score} → ❌ Reject (low score)")
         st.stop()
     else:
         st.success(f"CIC Score = {credit_score} → ✅ Pass")
 
     # =============================
-    # LAYER 4 (DTI_1)
+    # LAYER 4: DTI_1 & ML Model
     # =============================
-
-    st.subheader("Layer 4")
+    st.subheader("Layer 4: Income & DTI 1")
 
     if monthly_income < 500:
         st.error(f"Income = {monthly_income} → ❌ Reject (<500)")
@@ -201,52 +203,101 @@ if (internal is not None or cic is not None) and run:
     else:
         st.success(f"Income = {monthly_income} → ✅ Pass")
 
-    dti_1 = existing_debt / monthly_income if monthly_income > 0 else 0
-
-    st.write(f"DTI_1 = {round(dti_1,2)}")
+    dti_1 = existing_debt / monthly_income if monthly_income > 0 else 1.0
+    st.write(f"DTI_1 = {round(dti_1, 2)}")
 
     if dti_1 >= 0.5:
-        st.error(f"DTI_1 = {round(dti_1,2)} → ❌ Reject")
+        st.error(f"DTI_1 = {round(dti_1, 2)} → ❌ Reject")
         st.stop()
     else:
-        st.success(f"DTI_1 = {round(dti_1,2)} → ✅ Pass")
+        st.success(f"DTI_1 = {round(dti_1, 2)} → ✅ Pass")
 
-    # ML
-    prob = min(0.95, (credit_score / 850) + (0.5 - dti_1))
+    # --- ML Probability ---
+    # Cập nhật có sử dụng employment_years như yêu cầu
+    cs_dummy = credit_score if credit_score is not None else 500
+    prob = min(0.95, (cs_dummy / 850) + (0.5 - dti_1) + (employment_years * 0.02))
+    
+    st.write(f"ML Prob (Loan Status) = {round(prob, 2)}")
 
-    st.write(f"ML Prob = {round(prob,2)}")
-
-    if prob <= 0.7:
-        st.error(f"ML Prob = {round(prob,2)} → ❌ Reject")
+    # Theo rule mới, prob < 0.5 sẽ bị Reject cứng
+    if prob < 0.5:
+        st.error(f"ML Prob = {round(prob, 2)} → ❌ Reject (< 0.5)")
         st.stop()
     else:
-        st.success(f"ML Prob = {round(prob,2)} → ✅ Pass")
+        st.success(f"ML Prob = {round(prob, 2)} → ✅ Pass")
 
     # =============================
-    # FINAL (DTI_2)
+    # FINAL: DTI_2 & DECISION MATRIX
     # =============================
-
     st.header("Final Decision")
 
-    new_debt = 0.05 * loan_amount
-    dti_2 = (existing_debt + new_debt) / monthly_income
+    # Tính DTI 2: Khoản vay mong muốn chiếm bao nhiêu % thu nhập?
+    # Theo rule, hạn mức duyệt = (50%*monthly_income - existing_debt)/10% -> Ước tính số tiền trả góp hàng tháng là 10% loan_amount
+    new_debt = 0.10 * loan_amount 
+    dti_2 = (existing_debt + new_debt) / monthly_income if monthly_income > 0 else 1.0
 
-    st.write(f"DTI_2 = {round(dti_2,2)}")
+    st.write(f"DTI_2 = {round(dti_2 * 100, 2)}%")
 
-    approved_limit = (0.5 * monthly_income - existing_debt) / 0.05
+    # Công thức hạn mức cho Partial Approve
+    calc_limit = (0.50 * monthly_income - existing_debt) / 0.10
+    if calc_limit < 0: 
+        calc_limit = 0
 
-    if loan_amount <= approved_limit:
-        decision = "Approve"
-        final_amount = loan_amount
+    # Matrix Logic Variables
+    decision = "Reject"
+    final_amount = 0.0
+    prob_tier = "0.7-1.0" if prob >= 0.7 else "0.5-0.7"
+    cs = credit_score
 
-    elif loan_amount <= approved_limit * 1.5:
-        decision = "Partial Approve"
-        final_amount = approved_limit
+    # IMPLEMENT DECISION MATRIX VER 2
+    if customer_type == "NTB":
+        if prob_tier == "0.7-1.0":
+            if cs is not None and cs >= 570:
+                if dti_2 <= 0.50:
+                    decision, final_amount = "Approve", loan_amount
+                else:
+                    decision, final_amount = "Reject", 0 # DTI_2 vượt mốc 50%
+            elif cs is None or (431 <= cs <= 569):
+                if dti_2 <= 0.36:
+                    decision, final_amount = "Approve", loan_amount
+                else:
+                    decision, final_amount = "Partial Approve", calc_limit
+        elif prob_tier == "0.5-0.7":
+            if cs is not None and cs >= 570:
+                if dti_2 <= 0.36:
+                    decision, final_amount = "Approve", loan_amount
+                else:
+                    decision, final_amount = "Partial Approve", calc_limit
+            elif cs is None or (431 <= cs <= 569):
+                if dti_2 <= 0.36:
+                    decision, final_amount = "Manual Review", 0
+                else:
+                    decision, final_amount = "Reject", 0
 
+    elif customer_type == "ETB":
+        # ETB Red Notes Override
+        if dti_2 > 0.50:
+            decision, final_amount = "Reject", 0
+        else:
+            if prob_tier == "0.7-1.0":
+                decision, final_amount = "Approve", loan_amount
+            elif prob_tier == "0.5-0.7":
+                decision, final_amount = "Manual Review", 0
+
+    # Ràng buộc thêm: nếu Partial Approve mà calc_limit = 0 thì báo Reject
+    if decision == "Partial Approve" and final_amount <= 0:
+        decision = "Reject"
+        final_amount = 0
+
+    # RENDER KẾT QUẢ VỚI MÀU SẮC
+    if decision == "Approve":
+        st.success(f"🎉 Result: {decision}")
+    elif decision == "Partial Approve":
+        st.info(f"⚖️ Result: {decision}")
+    elif decision == "Manual Review":
+        st.warning(f"⚠️ Result: {decision}")
     else:
-        decision = "Manual Review"
-        final_amount = approved_limit
+        st.error(f"❌ Result: {decision}")
 
-    st.success(f"{decision}")
-
-    st.write(f"Approved Amount = {round(final_amount,2)}")
+    if decision in ["Approve", "Partial Approve"]:
+        st.write(f"### 💰 Approved Amount = {round(final_amount, 2)}")
