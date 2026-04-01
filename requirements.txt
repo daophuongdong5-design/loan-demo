@@ -6,3 +6,4 @@ joblib
 shap
 plotly
 openpyxl
+sqlalchemy
