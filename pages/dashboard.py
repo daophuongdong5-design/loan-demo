@@ -38,6 +38,26 @@ st.markdown("""
 st.title("Lending Risk Alerts Dashboard")
 
 # ==========================================
+# ADMIN PANEL: XÓA DỮ LIỆU (CHỈ HIỂN THỊ Ở SIDEBAR)
+# ==========================================
+with st.sidebar.expander("🛠️ Admin Panel", expanded=False):
+    st.markdown("Khu vực dành riêng cho người thuyết trình.")
+    # Ô nhập mật khẩu (dùng type="password" để ẩn ký tự)
+    admin_pass = st.text_input("Mật khẩu Admin:", type="password", key="clear_data_pass")
+    
+    # Nút xóa chỉ bật lên khi nhập đúng pass (ví dụ: pass là "demo123")
+    if st.button("🗑️ Xóa toàn bộ dữ liệu", disabled=(admin_pass != "demo123")):
+        try:
+            # Ngắt kết nối cũ (nếu có) và xóa hẳn file database
+            if os.path.exists("loan_database.db"):
+                os.remove("loan_database.db")
+            st.success("Đã làm sạch toàn bộ dữ liệu hệ thống!")
+            # Tải lại trang để dashboard cập nhật giao diện trống
+            st.rerun()
+        except Exception as e:
+            st.error(f"Không thể xóa dữ liệu lúc này. Lỗi: {e}")
+
+# ==========================================
 # 1. ĐỌC DỮ LIỆU LOG
 # ==========================================
 
