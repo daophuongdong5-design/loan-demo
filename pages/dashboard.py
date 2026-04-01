@@ -41,16 +41,6 @@ st.title("Lending Risk Alerts Dashboard")
 # 1. ĐỌC DỮ LIỆU LOG
 # ==========================================
 
-def load_data():
-    if not os.path.exists("decision_log.csv"):
-        return pd.DataFrame()
-    
-    # Bắt lỗi đọc file phòng trường hợp app.py đang ghi file thì dashboard lại đòi đọc
-    try:
-        df = pd.read_csv("decision_log.csv")
-    except:
-        df = pd.DataFrame()
-    return df
 
 df = load_data()
 
