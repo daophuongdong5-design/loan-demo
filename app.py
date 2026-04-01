@@ -162,9 +162,9 @@ if run:
         log_record["Rule Decision"] = rule_dec
         log_record["Final Decision"] = final_dec
         
-        file_exists = os.path.isfile("decision_log.csv")
         df_log = pd.DataFrame([log_record])
-        df_log.to_csv("decision_log.csv", mode='a', header=not file_exists, index=False)
+        # Ghi dữ liệu vào bảng 'decision_log' trong file loan_database.db
+        df_log.to_sql('decision_log', con=engine, if_exists='append', index=False)
         st.stop()
 
     credit_score = None
@@ -363,9 +363,9 @@ if run:
     if decision == "Reject":
         log_record["Reject Reason"] = "Failed at Final Matrix / DTI_2"
 
-    file_exists = os.path.isfile("decision_log.csv")
     df_log = pd.DataFrame([log_record])
-    df_log.to_csv("decision_log.csv", mode='a', header=not file_exists, index=False)
+    # Ghi dữ liệu vào bảng 'decision_log' trong file loan_database.db
+    df_log.to_sql('decision_log', con=engine, if_exists='append', index=False)
 
     # RENDER KẾT QUẢ
     if decision == "Approve":
@@ -380,11 +380,3 @@ if run:
     if decision in ["Approve", "Partial Approve"]:
         st.write(f"### 💰 Approved Amount = {round(final_amount, 2)}")
         
-
-def log_and_stop(reason, rule_dec="Reject", final_dec="Reject"):
-    # ... (khởi tạo log_record) ...
-    df_log = pd.DataFrame([log_record])
-    
-    # Đẩy data thẳng vào bảng 'decision_log' trong SQLite
-    df_log.to_sql('decision_log', con=engine, if_exists='append', index=False)
-    st.stop()
