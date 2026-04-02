@@ -9,7 +9,11 @@ engine = create_engine('sqlite:///loan_database.db')
 def load_data():
     try:
         # Dùng câu lệnh SQL thật để kéo dữ liệu lên Dashboard
-        return pd.read_sql("SELECT * FROM decision_log", con=engine)
+        df = pd.read_sql("SELECT * FROM decision_log", con=engine)
+        # Tự động tạo cột Timestamp rỗng nếu database cũ chưa có (tránh lỗi)
+        if 'Timestamp' not in df.columns:
+            df['Timestamp'] = ""
+        return df
     except:
         return pd.DataFrame()
 
@@ -213,8 +217,8 @@ with col_left:
     if filter_severity != "All": filtered_df = filtered_df[filtered_df['Severity'] == filter_severity]
     if filter_decision != "All": filtered_df = filtered_df[filtered_df['Final Decision'] == filter_decision]
     
-    # Chọn các cột cần hiển thị theo Excel
-    display_cols = ['National ID', 'Customer', 'DTI_2', 'ML probability', 'Alert Type', 'Severity', 'Final Decision', 'Reject Reason']
+    # Chọn các cột cần hiển thị theo Excel (Đã thêm Timestamp lên đầu tiên)
+    display_cols = ['Timestamp', 'National ID', 'Customer', 'DTI_2', 'ML probability', 'Alert Type', 'Severity', 'Final Decision', 'Reject Reason']
     
     # Đổi màu chữ cho DataFrame bằng Pandas Styling
     def style_dataframe(row):
@@ -277,7 +281,8 @@ with col_right:
     st.subheader("False Positive Monitoring")
     st.markdown("<span style='font-size:14px; color:#a0a5b1;'>Model APPROVE but Rule REJECT</span>", unsafe_allow_html=True)
     
-    fp_display_cols = ['National ID', 'Customer', 'ML probability', 'Model decision', 'Rule Decision', 'Final Decision']
+    # (Đã thêm Timestamp lên đầu tiên)
+    fp_display_cols = ['Timestamp', 'National ID', 'Customer', 'ML probability', 'Model decision', 'Rule Decision', 'Final Decision']
     
     if not false_positive_df.empty:
         st.dataframe(
