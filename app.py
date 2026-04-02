@@ -145,12 +145,16 @@ if run:
     st.header("Decision Engine Output")
 
     log_record = {
+        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "National ID": national_id,
         "Customer": full_name,
         "DOB": dob.strftime("%Y-%m-%d") if pd.notnull(dob) else "",
         "Customer Type": customer_type,
         "Monthly Income": monthly_income,
+        "Monthly Expenses": monthly_expenses,    # Thêm mới
         "Loan Amount": loan_amount,
+        "Employment Years": employment_years,    # Thêm mới
+        "Employment Status": employment_status,  # Thêm mới
         "Credit Score": None,
         "DTI_2": None,
         "ML probability": None,
