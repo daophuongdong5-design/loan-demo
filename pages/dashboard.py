@@ -1,113 +1,129 @@
+from sqlalchemy import create_engine
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
-from sqlalchemy import create_engine
 
-# Kết nối database
 engine = create_engine('sqlite:///loan_database.db')
+
+def load_data():
+    try:
+        # Dùng câu lệnh SQL thật để kéo dữ liệu lên Dashboard
+        return pd.read_sql("SELECT * FROM decision_log", con=engine)
+    except:
+        return pd.DataFrame()
 
 st.set_page_config(page_title="Risk Alerts Dashboard", layout="wide")
 
 # ==========================================
-# CẤU HÌNH GIAO DIỆN (CSS Dark Theme)
+# CẤU HÌNH GIAO DIỆN (Mô phỏng Dark Theme & CSS)
 # ==========================================
 st.markdown("""
     <style>
     .metric-card {
-        background-color: #2b2b3d;
+        background-color: #1e1e2d;
         border-radius: 10px;
-        padding: 15px;
+        padding: 20px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        text-align: left;
-        border: 1px solid #3d3d5c;
+        text-align: center;
     }
-    .metric-title { color: #a0a5b1; font-size: 14px; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;}
-    .metric-value { color: #ffffff; font-size: 26px; font-weight: bold; }
+    .metric-title { color: #a0a5b1; font-size: 14px; margin-bottom: 5px; }
+    .metric-value { color: #ffffff; font-size: 28px; font-weight: bold; }
+    .metric-sub { font-size: 16px; font-weight: bold; }
     .sub-red { color: #ff4b4b; }
     .sub-yellow { color: #faca2b; }
-    
-    /* Thu gọn padding của các cột Streamlit */
-    div[data-testid="column"] { padding: 0 10px; }
     </style>
 """, unsafe_allow_html=True)
 
+st.title("Lending Risk Alerts Dashboard")
+
 # ==========================================
-# ADMIN PANEL (SIDEBAR)
+# ADMIN PANEL: XÓA DỮ LIỆU (CHỈ HIỂN THỊ Ở SIDEBAR)
 # ==========================================
 with st.sidebar.expander("🛠️ Admin Panel", expanded=False):
     st.markdown("Khu vực dành riêng cho người thuyết trình.")
+    # Ô nhập mật khẩu (dùng type="password" để ẩn ký tự)
     admin_pass = st.text_input("Mật khẩu Admin:", type="password", key="clear_data_pass")
     
+    # Nút xóa chỉ bật lên khi nhập đúng pass (ví dụ: pass là "demo123")
     if st.button("🗑️ Xóa toàn bộ dữ liệu", disabled=(admin_pass != "demo123")):
         try:
+            # Ngắt kết nối cũ (nếu có) và xóa hẳn file database
             if os.path.exists("loan_database.db"):
                 os.remove("loan_database.db")
             st.success("Đã làm sạch toàn bộ dữ liệu hệ thống!")
+            # Tải lại trang để dashboard cập nhật giao diện trống
             st.rerun()
         except Exception as e:
-            st.error(f"Lỗi: {e}")
+            st.error(f"Không thể xóa dữ liệu lúc này. Lỗi: {e}")
 
 # ==========================================
-# 1. ĐỌC DỮ LIỆU
+# 1. ĐỌC DỮ LIỆU LOG
 # ==========================================
-def load_data():
-    try:
-        df = pd.read_sql("SELECT * FROM decision_log", con=engine)
-        
-        # Tạo sẵn các cột rỗng nếu database cũ chưa có (tránh lỗi crash)
-        if 'Timestamp' not in df.columns: df['Timestamp'] = ""
-        if 'National ID' not in df.columns: df['National ID'] = ""
 
-        # FIX LỖI PYARROW: Ép kiểu dữ liệu rõ ràng để Streamlit không bị crash
-        if not df.empty:
-            # 1. Ép tất cả các cột văn bản về chuẩn String
-            text_cols = ['Timestamp', 'Customer', 'National ID', 'Model decision', 'Rule Decision', 'Final Decision', 'Reject Reason']
-            for col in text_cols:
-                if col in df.columns:
-                    # Chuyển đổi sang string và xử lý các giá trị None/NaN thành chuỗi rỗng
-                    df[col] = df[col].fillna("").astype(str)
-            
-            # 2. Ép cột số liệu về chuẩn Float (số thực), nếu rỗng thì mặc định là 0.0
-            if 'DTI_2' in df.columns:
-                df['DTI_2'] = pd.to_numeric(df['DTI_2'], errors='coerce').fillna(0.0)
-                
-        return df
-    except Exception as e:
-        return pd.DataFrame()
 
 df = load_data()
 
-st.title("Lending Risk Alerts Dashboard")
+# Nút Refresh thủ công (Thêm nút này để bạn click làm mới trang nếu cần)
+if st.button("🔄 LÀM MỚI DASHBOARD"):
+    st.rerun()
 
 if df.empty:
-    st.warning("Chưa có dữ liệu log. Vui lòng chạy Decision Engine ở tab App.")
+    st.warning("Chưa có dữ liệu log hoặc file log đang trống. Vui lòng quay lại tab 'App' và chạy Decision Engine.")
     st.stop()
 
 # ==========================================
-# 2. XỬ LÝ LOGIC RULE 
+# 2. XỬ LÝ LOGIC ÁP DỤNG CÁC RULE TỪ EXCEL
 # ==========================================
 def determine_alert_and_severity(row):
     reason = str(row.get('Reject Reason', '')).lower()
     
-    try: dti_2 = float(row.get('DTI_2', 0)) if pd.notna(row.get('DTI_2')) else 0
+    # Xử lý an toàn cho các cột số
+    try:
+        dti_2 = float(row.get('DTI_2', 0)) if pd.notna(row.get('DTI_2')) else 0
     except: dti_2 = 0
         
-    try: ml_prob = float(row.get('ML probability', 1.0)) if pd.notna(row.get('ML probability')) else 1.0
+    try:
+        ml_prob = float(row.get('ML probability', 1.0)) if pd.notna(row.get('ML probability')) else 1.0
     except: ml_prob = 1.0
         
-    try: credit_score = float(row.get('Credit Score', 999)) if pd.notna(row.get('Credit Score')) else 999
+    try:
+        credit_score = float(row.get('Credit Score', 999)) if pd.notna(row.get('Credit Score')) else 999
     except: credit_score = 999
 
     alert_type = "Normal"
     
-    if "blacklist" in reason or "dpd" in reason or (0 < credit_score <= 430) or "low cic" in reason or "dti_1" in reason or ml_prob < 0.7 or dti_2 > 0.5:
+    # 1. Map High Risk (Ưu tiên kiểm tra trước)
+    if "blacklist" in reason or "blacklisted" in reason:
         alert_type = "High Risk"
+    elif "dpd" in reason:
+        alert_type = "High Risk"
+    elif 0 < credit_score <= 430 or "low cic score" in reason:
+        alert_type = "High Risk"
+    elif "dti_1" in reason:
+        alert_type = "High Risk"
+    elif ml_prob < 0.5:
+        alert_type = "High Risk"
+    elif dti_2 > 0.5:
+        alert_type = "High Risk"
+        
+    # 2. Map Borderline
     elif 0.36 < dti_2 <= 0.5:
         alert_type = "Borderline"
-    elif "age" in reason or "nationality" in reason or "income" in reason or "missing" in reason:
+    elif 0.5 <= ml_prob <= 0.7:
+        alert_type = "Borderline"
+        
+    # 3. Map Policy Issue
+    elif "age" in reason:
+        alert_type = "Policy Issue"
+    elif "nationality" in reason:
+        alert_type = "Policy Issue"
+    elif "income" in reason:
+        alert_type = "Policy Issue"
+    elif "missing" in reason or "null" in reason:
         alert_type = "Policy Issue"
         
+    # Map Severity tương ứng
     severity_map = {
         "High Risk": "Critical",
         "Borderline": "High",
@@ -117,23 +133,33 @@ def determine_alert_and_severity(row):
     
     return pd.Series([alert_type, severity_map[alert_type]])
 
+# Apply logic vào DataFrame
 df[['Alert Type', 'Severity']] = df.apply(determine_alert_and_severity, axis=1)
 
-# Tính toán các chỉ số KPI
+# ==========================================
+# 3. SECTION 1: METRICS & HEADER CONTROLS
+# ==========================================
+col_title, col_slider = st.columns([3, 1])
+with col_slider:
+    threshold = st.slider("False Positive Threshold (ML Prob)", 0.0, 1.0, 0.65, 0.05)
+
+# Tính toán các chỉ số
 total_apps = len(df)
 total_alerts = len(df[df['Alert Type'] != 'Normal'])
 
-# Đổi KPI từ % Reject thành % High Risk cho giống hình
-high_risk_count = len(df[df['Alert Type'] == 'High Risk'])
-pct_high_risk = (high_risk_count / total_apps * 100) if total_apps > 0 else 0
+low_approval_count = len(df[df['ML probability'] < threshold])
+pct_low_approval = (low_approval_count / total_apps * 100) if total_apps > 0 else 0
 
-false_positive_df = df[(df['Model decision'] == 'Approve') & ((df['Rule Decision'] == 'Reject') | (df['Final Decision'] == 'Reject'))]
+rejected_count = len(df[df['Final Decision'] == 'Reject'])
+pct_rejected = (rejected_count / total_apps * 100) if total_apps > 0 else 0
+
+# False Positive: ML Approve (prob >= threshold) nhưng Rule Reject (Final hoặc Rule decision)
+# Giả định: ML model decision = Approve, nhưng Final Decision = Reject
+false_positive_df = df[(df['Model decision'] == 'Approve') & (df['Rule Decision'] == 'Reject')]
 fp_count = len(false_positive_df)
 pct_false_positive = (fp_count / total_apps * 100) if total_apps > 0 else 0
 
-# ==========================================
-# 3. HEADER METRICS (Top Row)
-# ==========================================
+# Render các thẻ KPIs (Dùng HTML để giống giao diện dark theme)
 m1, m2, m3, m4 = st.columns(4)
 
 m1.markdown(f"""
@@ -152,8 +178,8 @@ m2.markdown(f"""
 
 m3.markdown(f"""
 <div class="metric-card">
-    <div class="metric-title">⚠️ % High Risk</div>
-    <div class="metric-value"><span class="sub-red">{pct_high_risk:.1f}%</span></div>
+    <div class="metric-title">⚠️ % Rejected (Final)</div>
+    <div class="metric-value"><span class="sub-red">{pct_rejected:.1f}%</span></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -167,71 +193,91 @@ m4.markdown(f"""
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
-# 4. CHIA CỘT CHÍNH (Trái 65% - Phải 35%)
+# 4. LAYOUT CHÍNH: CHIA 2 CỘT (Trái 65% - Phải 35%)
 # ==========================================
 col_left, col_right = st.columns([6.5, 3.5])
 
-# --- CỘT TRÁI: BẢNG RISK ALERTS ---
+# --- CỘT TRÁI: SECTION 2 - I. ALERTS TABLE ---
 with col_left:
-    st.subheader("Risk Alerts")
+    st.subheader("Risk Alerts Table")
     
-    # Cập nhật cột: Thời gian thực luôn nằm bên trái National ID
-    display_cols = ['Timestamp', 'National ID', 'Customer', 'DTI_2', 'Alert Type', 'Severity', 'Final Decision']
+    # Filter Controls cho bảng
+    f1, f2, f3 = st.columns(3)
+    filter_alert = f1.selectbox("Alert Type", ["All"] + list(df['Alert Type'].unique()))
+    filter_severity = f2.selectbox("Severity", ["All"] + list(df['Severity'].unique()))
+    filter_decision = f3.selectbox("Final Decision", ["All"] + list(df['Final Decision'].unique()))
     
+    # Áp dụng filter
+    filtered_df = df.copy()
+    if filter_alert != "All": filtered_df = filtered_df[filtered_df['Alert Type'] == filter_alert]
+    if filter_severity != "All": filtered_df = filtered_df[filtered_df['Severity'] == filter_severity]
+    if filter_decision != "All": filtered_df = filtered_df[filtered_df['Final Decision'] == filter_decision]
+    
+    # Chọn các cột cần hiển thị theo Excel
+    display_cols = ['National ID', 'Customer', 'DTI_2', 'ML probability', 'Alert Type', 'Severity', 'Final Decision', 'Reject Reason']
+    
+    # Đổi màu chữ cho DataFrame bằng Pandas Styling
     def style_dataframe(row):
         colors = [''] * len(row)
         alert = row['Alert Type']
-        if alert == 'High Risk': bg_color = 'background-color: rgba(239, 85, 59, 0.2); color: #EF553B;'
-        elif alert == 'Borderline': bg_color = 'background-color: rgba(254, 203, 82, 0.2); color: #FECB52;'
-        elif alert == 'Policy Issue': bg_color = 'background-color: rgba(99, 110, 250, 0.2); color: #636EFA;'
-        else: bg_color = 'color: #00CC96;' 
+        if alert == 'High Risk': bg_color = 'background-color: rgba(255, 75, 75, 0.2); color: #ff4b4b;'
+        elif alert == 'Borderline': bg_color = 'background-color: rgba(250, 202, 43, 0.2); color: #faca2b;'
+        elif alert == 'Policy Issue': bg_color = 'background-color: rgba(0, 191, 255, 0.2); color: #00bfff;'
+        else: bg_color = 'color: #90ee90;' # Normal
         
+        # Áp dụng màu cho cột Alert Type và Severity
         try:
-            colors[row.index.get_loc('Alert Type')] = bg_color
-            colors[row.index.get_loc('Severity')] = bg_color
+            alert_idx = row.index.get_loc('Alert Type')
+            sev_idx = row.index.get_loc('Severity')
+            colors[alert_idx] = bg_color
+            colors[sev_idx] = bg_color
         except: pass
         return colors
 
     st.dataframe(
-        df[display_cols].style.apply(style_dataframe, axis=1).format({"DTI_2": "{:.2f}"}),
+        filtered_df[display_cols].style.apply(style_dataframe, axis=1),
         use_container_width=True,
         hide_index=True,
         height=550
     )
 
-# --- CỘT PHẢI: BIỂU ĐỒ & BẢNG FALSE POSITIVE ---
+# --- CỘT PHẢI: SECTION 2.II & SECTION 3 ---
 with col_right:
-    # 1. Biểu đồ Pie
-    st.subheader("Alert Severities")
+    # --- SECTION 2.II: PIE CHART ---
+    st.subheader("Alert Severities Distribution")
     alert_counts = df['Alert Type'].value_counts().reset_index()
     alert_counts.columns = ['Alert Type', 'Count']
     
+    # Map màu cứng để biểu đồ luôn chuẩn màu ý nghĩa
     color_discrete_map = {
-        'High Risk': '#EF553B',
-        'Borderline': '#FECB52',
-        'Policy Issue': '#636EFA',
-        'Normal': '#00CC96'
+        'High Risk': '#EF553B',    # Đỏ
+        'Borderline': '#FECB52',   # Vàng
+        'Policy Issue': '#636EFA', # Xanh dương
+        'Normal': '#00CC96'        # Xanh lá
     }
     
     fig = px.pie(
-        alert_counts, values='Count', names='Alert Type', hole=0.5, 
-        color='Alert Type', color_discrete_map=color_discrete_map
+        alert_counts, 
+        values='Count', 
+        names='Alert Type', 
+        hole=0.4, # Tạo Donut chart cho hiện đại giống hình
+        color='Alert Type',
+        color_discrete_map=color_discrete_map
     )
     fig.update_layout(
-        margin=dict(t=0, b=10, l=0, r=0),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=10, b=10, l=10, r=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         font=dict(color="white"),
-        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.0)
+        legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.0)
     )
     st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # 2. Bảng False Positive
+    # --- SECTION 3: FALSE POSITIVE MONITOR ---
     st.subheader("False Positive Monitoring")
+    st.markdown("<span style='font-size:14px; color:#a0a5b1;'>Model APPROVE but Rule REJECT</span>", unsafe_allow_html=True)
     
-    # Cập nhật cột: Thời gian thực luôn nằm bên trái National ID
-    fp_display_cols = ['Timestamp', 'National ID', 'Customer', 'Model decision', 'Rule Decision', 'Final Decision']
+    fp_display_cols = ['National ID', 'Customer', 'ML probability', 'Model decision', 'Rule Decision', 'Final Decision']
     
     if not false_positive_df.empty:
         st.dataframe(
@@ -241,4 +287,4 @@ with col_right:
             height=250
         )
     else:
-        st.info("Chưa có hồ sơ False Positive.")
+        st.info("Chưa có hồ sơ False Positive nào được ghi nhận.")
