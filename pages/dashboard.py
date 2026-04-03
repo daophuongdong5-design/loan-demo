@@ -39,6 +39,7 @@ st.markdown("""
         padding: 20px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         text-align: center;
+        border: 2px solid #000000; /* THÊM VIỀN MÀU ĐEN */
     }
     .metric-title { color: #000000; font-size: 16px; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
     .metric-value { color: #000000; font-size: 32px; font-weight: bold; }
