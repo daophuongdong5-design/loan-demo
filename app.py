@@ -336,7 +336,7 @@ if run:
             "loan_intent": loan_intent_val,
             "interest_rate": interest_rate, 
             "loan_percent_income": loan_percent_income,
-            "credit_score": 0 if credit_score is None else credit_score, 
+            "credit_score": 650 if credit_score is None else credit_score, 
             "expense_to_income": expense_to_income,
             "disposable_income": disposable_income, 
             "loan_to_disposable_income": loan_to_disposable_income,
