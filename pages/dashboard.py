@@ -139,7 +139,7 @@ with col_left:
         'Timestamp', 'National ID', 'Customer', 
         'Monthly Income', 'Monthly Expenses', 'Loan Amount', 
         'Employment Years', 'Employment Status', 
-        'DTI_2', 'Alert Type', 'Severity', 'Final Decision'
+        'DTI_2', 'ML probability', 'Alert Type', 'Severity', 'Final Decision', 'Reject Reason'
     ]
     
     def style_df(row):
@@ -164,7 +164,7 @@ with col_right:
 
     st.subheader("False Positive Monitoring")
     # Cập nhật cột cho bảng False Positive
-    fp_cols = ['Timestamp', 'National ID', 'Customer', 'Monthly Income', 'Loan Amount', 'Final Decision']
+    fp_cols = ['Timestamp', 'National ID', 'Customer', 'Monthly Income', 'Loan Amount', 'ML probability', 'Final Decision', 'Reject Reason']
     if not false_positive_df.empty:
         st.dataframe(false_positive_df[fp_cols], use_container_width=True, hide_index=True)
     else:
