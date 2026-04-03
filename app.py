@@ -203,8 +203,6 @@ if run:
             try: past_default = int(internal.get("past_default", 0))
             except: past_default = 0
             
-            raw_interest_rate = internal.get("interest_rate", "18%")
-
     log_record["Credit Score"] = credit_score
 
     # =============================
