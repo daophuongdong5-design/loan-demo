@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import os
 import json
 from sqlalchemy import create_engine
@@ -145,7 +145,7 @@ if run:
     st.header("Decision Engine Output")
 
     log_record = {
-        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Timestamp": (datetime.now(timezone.utc) + timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S"),
         "National ID": national_id,
         "Customer": full_name,
         "DOB": dob.strftime("%Y-%m-%d") if pd.notnull(dob) else "",
