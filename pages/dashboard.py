@@ -34,14 +34,14 @@ st.set_page_config(page_title="Risk Alerts Dashboard", layout="wide")
 st.markdown("""
     <style>
     .metric-card {
-        background-color: #1e1e2d;
+        background-color: #ffffff;
         border-radius: 10px;
         padding: 20px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         text-align: center;
     }
-    .metric-title { color: #a0a5b1; font-size: 14px; margin-bottom: 5px; }
-    .metric-value { color: #ffffff; font-size: 28px; font-weight: bold; }
+    .metric-title { color: #000000; font-size: 16px; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
+    .metric-value { color: #000000; font-size: 32px; font-weight: bold; }
     .sub-red { color: #ff4b4b; }
     .sub-yellow { color: #faca2b; }
     </style>
@@ -69,7 +69,7 @@ with st.sidebar.expander("🛠️ Admin Panel", expanded=False):
 # ==========================================
 df = load_data()
 
-if st.button("🔄 LÀM MỚI DASHBOARD"):
+if st.button("🔄 REFRESH DASHBOARD"):
     st.rerun()
 
 if df.empty:
@@ -110,60 +110,63 @@ pct_false_positive = (len(false_positive_df) / total_apps * 100) if total_apps >
 
 # Metric Cards
 m1, m2, m3, m4 = st.columns(4)
-m1.markdown(f'<div class="metric-card"><div class="metric-title">📑 Total Apps</div><div class="metric-value">{total_apps}</div></div>', unsafe_allow_html=True)
-m2.markdown(f'<div class="metric-card"><div class="metric-title">🔔 Total Alerts</div><div class="metric-value">{total_alerts}</div></div>', unsafe_allow_html=True)
-m3.markdown(f'<div class="metric-card"><div class="metric-title">⚠️ % Rejected</div><div class="metric-value"><span class="sub-red">{pct_rejected:.1f}%</span></div></div>', unsafe_allow_html=True)
-m4.markdown(f'<div class="metric-card"><div class="metric-title">⚠️ % False Positives</div><div class="metric-value"><span class="sub-yellow">{pct_false_positive:.1f}%</span></div></div>', unsafe_allow_html=True)
+m1.markdown(f'<div class="metric-card"><div class="metric-title">📑 TOTAL APPS</div><div class="metric-value">{total_apps}</div></div>', unsafe_allow_html=True)
+m2.markdown(f'<div class="metric-card"><div class="metric-title">🔔 TOTAL ALERTS</div><div class="metric-value">{total_alerts}</div></div>', unsafe_allow_html=True)
+m3.markdown(f'<div class="metric-card"><div class="metric-title">⚠️ % REJECTED</div><div class="metric-value"><span class="sub-red">{pct_rejected:.1f}%</span></div></div>', unsafe_allow_html=True)
+m4.markdown(f'<div class="metric-card"><div class="metric-title">⚠️ % FALSE POSITIVES</div><div class="metric-value"><span class="sub-yellow">{pct_false_positive:.1f}%</span></div></div>', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
-# 4. BẢNG DỮ LIỆU & BIỂU ĐỒ
+# 4. BẢNG DỮ LIỆU & BIỂU ĐỒ (ĐÃ ĐƯỢC BỐ TRÍ LẠI LAYOUT)
 # ==========================================
-col_left, col_right = st.columns([7, 3])
 
-with col_left:
-    st.subheader("Risk Alerts Table")
-    f1, f2, f3 = st.columns(3)
-    filter_alert = f1.selectbox("Alert Type", ["All"] + list(df['Alert Type'].unique()))
-    filter_severity = f2.selectbox("Severity", ["All"] + list(df['Severity'].unique()))
-    filter_decision = f3.selectbox("Final Decision", ["All"] + list(df['Final Decision'].unique()))
-    
-    filtered_df = df.copy()
-    if filter_alert != "All": filtered_df = filtered_df[filtered_df['Alert Type'] == filter_alert]
-    if filter_severity != "All": filtered_df = filtered_df[filtered_df['Severity'] == filter_severity]
-    if filter_decision != "All": filtered_df = filtered_df[filtered_df['Final Decision'] == filter_decision]
+# --- KHU VỰC 1: BẢNG RISK ALERTS (Trải dài toàn bộ màn hình để dễ theo dõi) ---
+st.subheader("Risk Alerts Table")
+f1, f2, f3 = st.columns(3)
+filter_alert = f1.selectbox("Alert Type", ["All"] + list(df['Alert Type'].unique()))
+filter_severity = f2.selectbox("Severity", ["All"] + list(df['Severity'].unique()))
+filter_decision = f3.selectbox("Final Decision", ["All"] + list(df['Final Decision'].unique()))
 
-    # THÊM CÁC CỘT MỚI VÀO ĐÂY THEO YÊU CẦU
-    display_cols = [
-        'Timestamp', 'National ID', 'Customer', 
-        'Monthly Income', 'Monthly Expenses', 'Loan Amount', 
-        'Employment Years', 'Employment Status', 
-        'DTI_2', 'ML probability', 'Alert Type', 'Severity', 'Final Decision', 'Reject Reason'
-    ]
-    
-    def style_df(row):
-        colors = [''] * len(row)
-        if row['Alert Type'] == 'High Risk': bg = 'background-color: rgba(255, 75, 75, 0.1); color: #ff4b4b;'
-        elif row['Alert Type'] == 'Borderline': bg = 'background-color: rgba(250, 202, 43, 0.1); color: #faca2b;'
-        else: bg = ''
-        try:
-            colors[row.index.get_loc('Alert Type')] = bg
-            colors[row.index.get_loc('Severity')] = bg
-        except: pass
-        return colors
+filtered_df = df.copy()
+if filter_alert != "All": filtered_df = filtered_df[filtered_df['Alert Type'] == filter_alert]
+if filter_severity != "All": filtered_df = filtered_df[filtered_df['Severity'] == filter_severity]
+if filter_decision != "All": filtered_df = filtered_df[filtered_df['Final Decision'] == filter_decision]
 
-    st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1), use_container_width=True, hide_index=True)
+display_cols = [
+    'Timestamp', 'National ID', 'Customer', 
+    'Monthly Income', 'Monthly Expenses', 'Loan Amount', 
+    'Employment Years', 'Employment Status', 
+    'DTI_2', 'ML probability', 'Alert Type', 'Severity', 'Final Decision', 'Reject Reason'
+]
 
-with col_right:
+def style_df(row):
+    colors = [''] * len(row)
+    if row['Alert Type'] == 'High Risk': bg = 'background-color: rgba(255, 75, 75, 0.1); color: #ff4b4b;'
+    elif row['Alert Type'] == 'Borderline': bg = 'background-color: rgba(250, 202, 43, 0.1); color: #faca2b;'
+    else: bg = ''
+    try:
+        colors[row.index.get_loc('Alert Type')] = bg
+        colors[row.index.get_loc('Severity')] = bg
+    except: pass
+    return colors
+
+st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1), use_container_width=True, hide_index=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- KHU VỰC 2: PIE CHART VÀ FALSE POSITIVE ĐƯỢC ĐẨY XUỐNG DƯỚI ---
+col_bottom_left, col_bottom_right = st.columns([3, 7])
+
+with col_bottom_left:
     st.subheader("Alert Severities")
     fig = px.pie(df, names='Alert Type', hole=0.4, color='Alert Type',
                  color_discrete_map={'High Risk': '#ff4b4b', 'Borderline': '#faca2b', 'Policy Issue': '#00bfff', 'Normal': '#90ee90'})
     fig.update_layout(showlegend=True, paper_bgcolor="rgba(0,0,0,0)", font_color="white")
     st.plotly_chart(fig, use_container_width=True)
 
+with col_bottom_right:
     st.subheader("False Positive Monitoring")
-    # Cập nhật cột cho bảng False Positive
     fp_cols = ['Timestamp', 'National ID', 'Customer', 'Monthly Income', 'Loan Amount', 'ML probability', 'Final Decision', 'Reject Reason']
     if not false_positive_df.empty:
         st.dataframe(false_positive_df[fp_cols], use_container_width=True, hide_index=True)
