@@ -179,7 +179,7 @@ if run:
     existing_debt = 0
     blacklist = 0
     past_default = 0
-    raw_interest_rate = "9%" 
+    raw_interest_rate = "18%" 
 
     if user_found:
         if cic is not None and "credit_score" in cic:
@@ -203,7 +203,7 @@ if run:
             try: past_default = int(internal.get("past_default", 0))
             except: past_default = 0
             
-            raw_interest_rate = internal.get("interest_rate", "9%")
+            raw_interest_rate = internal.get("interest_rate", "18%")
 
     log_record["Credit Score"] = credit_score
 
@@ -321,7 +321,7 @@ if run:
         try:
             interest_rate = float(str(raw_interest_rate).replace("%", ""))
         except:
-            interest_rate = 9.0
+            interest_rate = 18.0
         
         X = pd.DataFrame([{
             "age": age, 
