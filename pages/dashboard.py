@@ -167,7 +167,13 @@ with col_bottom_left:
     st.plotly_chart(fig, use_container_width=True)
 
 with col_bottom_right:
-    st.subheader("False Positive Monitoring")
+    # THÊM THANH TRƯỢT SLIDER VÀO ĐÚNG NHƯ TRONG HÌNH
+    col_fp_title, col_fp_slider = st.columns([3, 2])
+    with col_fp_title:
+        st.subheader("False Positive Monitoring")
+    with col_fp_slider:
+        threshold = st.slider("False Positive Threshold (ML Prob)", 0.0, 1.0, 0.65, 0.05)
+
     fp_cols = ['Timestamp', 'National ID', 'Customer', 'Monthly Income', 'Loan Amount', 'ML probability', 'Final Decision', 'Reject Reason']
     if not false_positive_df.empty:
         st.dataframe(false_positive_df[fp_cols], use_container_width=True, hide_index=True)
