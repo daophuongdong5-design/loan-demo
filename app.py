@@ -355,13 +355,13 @@ if run:
     st.write(f"ML Prob (Loan Status) = {round(prob, 2)}")
 
     log_record["ML probability"] = round(prob, 4)
-    # ML Approve chỉ khi prob >= 0.6
-    log_record["Model decision"] = "Approve" if prob >= 0.6 else "Reject"
+    # ML Approve chỉ khi prob >= 0.7
+    log_record["Model decision"] = "Approve" if prob >= 0.7 else "Reject"
 
-    # Rule 4.3: Xác suất < 0.6 là Reject
-    if prob < 0.6:
-        st.error(f"ML Prob = {round(prob, 2)} → ❌ Reject (< 0.6)")
-        log_and_stop(f"ML Prob too low ({round(prob, 2)} < 0.6)", rule_dec="Pass")
+    # Rule 4.3: Xác suất < 0.7 là Reject
+    if prob < 0.7:
+        st.error(f"ML Prob = {round(prob, 2)} → ❌ Reject (< 0.7)")
+        log_and_stop(f"ML Prob too low ({round(prob, 2)} < 0.7)", rule_dec="Pass")
     else:
         st.success(f"ML Prob = {round(prob, 2)} → ✅ Pass")
 
