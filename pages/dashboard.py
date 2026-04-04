@@ -157,7 +157,19 @@ def style_df(row):
     except: pass
     return colors
 
-st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1), use_container_width=True, hide_index=True)
+st.dataframe(
+    filtered_df[display_cols]
+    .style
+    .apply(style_df, axis=1)
+    .format({
+        'Monthly Income': '{:.1f}',
+        'Monthly Expenses': '{:.1f}',
+        'Loan Amount': '{:.1f}',
+        'Employment Years': '{:.1f}'
+    }),
+    use_container_width=True,
+    hide_index=True
+)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- KHU VỰC 2: PIE CHART VÀ FALSE POSITIVE ĐƯỢC ĐẨY XUỐNG DƯỚI ---
