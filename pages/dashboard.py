@@ -162,25 +162,46 @@ st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1), use_contai
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- KHU VỰC 2: PIE CHART VÀ FALSE POSITIVE ĐƯỢC ĐẨY XUỐNG DƯỚI ---
-col_bottom_left, col_bottom_right = st.columns([3, 7])
+# Nới rộng cột trái một chút [4, 6] để có đủ không gian chứa 2 biểu đồ
+col_bottom_left, col_bottom_right = st.columns([4, 6])
 
 with col_bottom_left:
-    st.subheader("Alert Severities")
-    fig = px.pie(df, names='Alert Type', hole=0.4, color='Alert Type',
-                 color_discrete_map={'High Risk': '#ff4b4b', 'Borderline': '#faca2b', 'Policy Issue': '#00bfff', 'Normal': '#90ee90'})
-    fig.update_layout(showlegend=True, paper_bgcolor="rgba(0,0,0,0)", font_color="white")
-    st.plotly_chart(fig, use_container_width=True)
+    # Chia làm 2 cột nhỏ cho 2 biểu đồ
+    pie_col1, pie_col2 = st.columns(2)
+    with pie_col1:
+        st.subheader("Alert Types")
+        fig1 = px.pie(df, names='Alert Type', hole=0.4, color='Alert Type',
+                     color_discrete_map={'High Risk': '#ff4b4b', 'Borderline': '#faca2b', 'Policy Issue': '#00bfff', 'Normal': '#90ee90'})
+        # Đổi font_color thành black cho hợp nền trắng, ẩn chú thích (legend) để biểu đồ to rõ hơn
+        fig1.update_layout(showlegend=False, paper_bgcolor="rgba(0,0,0,0)", font_color="black", margin=dict(t=10, b=10, l=10, r=10))
+        st.plotly_chart(fig1, use_container_width=True)
+        
+    with pie_col2:
+        st.subheader("Severities")
+        fig2 = px.pie(df, names='Severity', hole=0.4, color='Severity',
+                     color_discrete_map={'Critical': '#ff4b4b', 'High': '#faca2b', 'Medium': '#00bfff', 'Low': '#90ee90'})
+        fig2.update_layout(showlegend=False, paper_bgcolor="rgba(0,0,0,0)", font_color="black", margin=dict(t=10, b=10, l=10, r=10))
+        st.plotly_chart(fig2, use_container_width=True)
 
 with col_bottom_right:
-    # THÊM THANH TRƯỢT SLIDER VÀO ĐÚNG NHƯ TRONG HÌNH
     col_fp_title, col_fp_slider = st.columns([3, 2])
     with col_fp_title:
         st.subheader("False Positive Monitoring")
     with col_fp_slider:
         threshold = st.slider("False Positive Threshold (ML Prob)", 0.0, 1.0, 0.65, 0.05)
 
+    # Tính toán lại False Positives và FPR dựa trên thanh trượt
+    df['ML_prob_numeric'] = pd.to_numeric(df['ML probability'], errors='coerce').fillna(0)
+    # Lọc: Rule thì từ chối (Reject) nhưng AI lại chấm điểm lớn hơn hoặc bằng thanh trượt
+    dynamic_fp_df = df[(df['ML_prob_numeric'] >= threshold) & (df['Rule Decision'] == 'Reject')]
+    
+    current_fpr = (len(dynamic_fp_df) / total_apps * 100) if total_apps > 0 else 0
+    
+    # Hiển thị FPR giống trong hình
+    st.markdown(f"**FPR: {current_fpr:.2f}%**")
+
     fp_cols = ['Timestamp', 'National ID', 'Customer', 'Monthly Income', 'Loan Amount', 'ML probability', 'Final Decision', 'Reject Reason']
-    if not false_positive_df.empty:
-        st.dataframe(false_positive_df[fp_cols], use_container_width=True, hide_index=True)
+    if not dynamic_fp_df.empty:
+        st.dataframe(dynamic_fp_df[fp_cols], use_container_width=True, hide_index=True)
     else:
         st.info("No False Positives.")
