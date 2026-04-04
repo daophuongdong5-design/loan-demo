@@ -178,7 +178,6 @@ if run:
     max_dpd30 = 0
     existing_debt = 0
     blacklist = 0
-    past_default = 0
     raw_interest_rate = "18%" 
 
     if user_found:
@@ -286,25 +285,53 @@ if run:
         prob = 0.8
     else:
         if user_found and cic is not None:
-            try: credit_history_years = int(cic.get("credit_history_years", 0))
-            except: credit_history_years = 0
+            val = cic.get("credit_history_years")
+            try:
+              credit_history_years = None if val is None or pd.isna(val) else int(val)
+            except:
+              credit_history_years = None
         else:
-            credit_history_years = 0
+            credit_history_years = None
         
-        # -------- ENCODING --------
+# -------- ENCODING --------
+        # Chuẩn hóa biến đầu vào từ giao diện
         employment_status_key = str(employment_status).strip().lower().replace(" ", "_")
-        employment_status_val = MAPPING["employment_status"].get(employment_status_key, 0)
+        
+        employment_status_val = MAPPING["employment_status"].get(employment_status_key, None)
 
-        loan_intent_val = MAPPING["loan_intent"]["personal"]
-        education_val = MAPPING["education"]["bachelor"]
-        residence_type_val = MAPPING["residence_type"]["rent"]
-        gender_val = MAPPING["gender"]["male"]
+        loan_intent_input = None
+        education_input = None
+        residence_type_input = None
+        gender_input = None
 
-        if pd.isna(past_default):
-            past_default_key = "no" 
+        def map_value(mapping, field, value):
+            if value is None:
+                return None
+            return mapping.get(field, {}).get(
+                str(value).strip().lower().replace(" ", "_"),
+                None
+            )
+
+        loan_intent_val = map_value(MAPPING, "loan_intent", loan_intent_input)
+        education_val = map_value(MAPPING, "education", education_input)
+        residence_type_val = map_value(MAPPING, "residence_type", residence_type_input)
+        gender_val = map_value(MAPPING, "gender", gender_input)
+
+        # Logic lấy past_default từ nhiều nguồn (Internal hoặc CIC)
+        if internal is not None and "past_default" in internal:
+            val = internal.get("past_default")
+        elif cic is not None and "past_default" in cic:
+            val = cic.get("past_default")
         else:
-            past_default_key = "yes" if past_default == 1 else "no"
-        past_default_val = MAPPING["past_default"][past_default_key]
+            val = None
+
+        try:
+            past_default = 0 if val is None or pd.isna(val) else int(val)
+        except:
+            past_default = 0
+
+        past_default_key = "yes" if past_default == 1 else "no"
+        past_default_val = MAPPING.get("past_default", {}).get(past_default_key, None)
         
         # -------- FEATURE ENGINEERING --------
         expense_to_income = monthly_expenses / monthly_income if monthly_income > 0 else 0
@@ -336,7 +363,7 @@ if run:
             "loan_intent": loan_intent_val,
             "interest_rate": interest_rate, 
             "loan_percent_income": loan_percent_income,
-            "credit_score": 0 if credit_score is None else credit_score, 
+            "credit_score": credit_score, 
             "expense_to_income": expense_to_income,
             "disposable_income": disposable_income, 
             "loan_to_disposable_income": loan_to_disposable_income,
@@ -355,15 +382,13 @@ if run:
     st.write(f"ML Prob (Loan Status) = {round(prob, 2)}")
 
     log_record["ML probability"] = round(prob, 4)
-    # ML Approve chỉ khi prob >= 0.7
-    log_record["Model decision"] = "Approve" if prob >= 0.7 else "Reject"
+    # ML Approve chỉ khi prob >= 0.5
+    log_record["Model decision"] = "Approve" if prob >= 0.5 else "Reject"
 
-    # Rule 4.3: Xác suất < 0.7 là Reject
-    if prob < 0.7:
-        st.error(f"ML Prob = {round(prob, 2)} → ❌ Reject (< 0.7)")
-        log_and_stop(f"ML Prob too low ({round(prob, 2)} < 0.7)", rule_dec="Pass")
-    else:
-        st.success(f"ML Prob = {round(prob, 2)} → ✅ Pass")
+    # Rule 4.3: Xác suất < 0.5 là Reject
+    if prob < 0.5:
+        st.error(f"ML Prob = {round(prob, 2)} → ❌ Reject (< 0.5)")
+        log_and_stop(f"ML Prob too low ({round(prob, 2)} < 0.5)", rule_dec="Pass")
 
     # =============================
     # FINAL: DTI_2 & DECISION MATRIX
