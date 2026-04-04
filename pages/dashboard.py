@@ -116,7 +116,7 @@ pct_false_positive = (len(false_positive_df) / total_apps * 100) if total_apps >
 
 # Metric Cards
 m1, m2, m3, m4 = st.columns(4)
-m1.markdown(f'<div class="metric-card"><div class="metric-title">📑 TOTAL APPS</div><div class="metric-value">{total_apps}</div></div>', unsafe_allow_html=True)
+m1.markdown(f'<div class="metric-card"><div class="metric-title">📑 TOTAL APPLICATIONS</div><div class="metric-value">{total_apps}</div></div>', unsafe_allow_html=True)
 m2.markdown(f'<div class="metric-card"><div class="metric-title">🔔 TOTAL ALERTS</div><div class="metric-value">{total_alerts}</div></div>', unsafe_allow_html=True)
 m3.markdown(f'<div class="metric-card"><div class="metric-title">⚠️ % REJECTED</div><div class="metric-value"><span class="sub-red">{pct_rejected:.1f}%</span></div></div>', unsafe_allow_html=True)
 m4.markdown(f'<div class="metric-card"><div class="metric-title">⚠️ % FALSE POSITIVES</div><div class="metric-value"><span class="sub-yellow">{pct_false_positive:.1f}%</span></div></div>', unsafe_allow_html=True)
