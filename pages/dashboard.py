@@ -78,11 +78,12 @@ if df.empty:
     st.stop()
 
 # ==========================================
-# ==========================================
 # 2. XỬ LÝ LOGIC ALERTS
 # ==========================================
 def determine_alert_and_severity(row):
     reason = str(row.get('Reject Reason', '')).lower()
+    final_decision = str(row.get('Final Decision', '')) # Thêm dòng này để lấy kết quả cuối cùng
+    
     try: dti_2 = float(row.get('DTI_2', 0)) if pd.notna(row.get('DTI_2')) else 0
     except: dti_2 = 0
     try: ml_prob = float(row.get('ML probability', 1.0)) if pd.notna(row.get('ML probability')) else 1.0
@@ -92,15 +93,15 @@ def determine_alert_and_severity(row):
 
     alert_type = "Normal"
     
-    # Cập nhật Credit Score < 500, ML Prob < 0.6, DTI_2 > 0.6 theo đúng hình ảnh ma trận
-    if "blacklist" in reason or "dpd" in reason or (0 < credit_score < 500) or "low cic" in reason or "dti_1" in reason or ml_prob < 0.6 or dti_2 > 0.6:
-        alert_type = "High Risk"
-    # Cập nhật ngưỡng Borderline thành 40% - 60%
-    elif 0.4 < dti_2 <= 0.6:
-        alert_type = "Borderline"
-    elif "age" in reason or "nationality" in reason or "income" in reason:
-        alert_type = "Policy Issue"
-        
+    # Chỉ áp dụng các logic cảnh báo rủi ro nếu hồ sơ KHÔNG được Approve
+    if "Approve" not in final_decision:
+        if "blacklist" in reason or "dpd" in reason or (0 < credit_score < 500) or "low cic" in reason or "dti_1" in reason or ml_prob < 0.6 or dti_2 > 0.6:
+            alert_type = "High Risk"
+        elif 0.4 < dti_2 <= 0.6:
+            alert_type = "Borderline"
+        elif "age" in reason or "nationality" in reason or "income" in reason:
+            alert_type = "Policy Issue"
+            
     severity_map = {"High Risk": "Critical", "Borderline": "High", "Policy Issue": "Medium", "Normal": "Low"}
     return pd.Series([alert_type, severity_map[alert_type]])
     
