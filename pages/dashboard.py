@@ -157,15 +157,7 @@ def style_df(row):
     except: pass
     return colors
 
-# Khai báo 4 cột cần hiển thị 1 số sau dấu phẩy
-    format_cols = ['Monthly Income', 'Monthly Expenses', 'Loan Amount', 'Employment Years']
-    
-    # Xử lý dữ liệu an toàn: Ép về số, làm tròn, và chuyển thành chuỗi (string) định dạng có 1 số sau dấu phẩy
-    for col in format_cols:
-        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce').apply(lambda x: f"{x:.1f}" if pd.notna(x) else "")
-
-    # Vẽ bảng bình thường (Đã bỏ lệnh .format() gây crash ở cuối)
-    st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1), use_container_width=True, hide_index=True)
+st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1), use_container_width=True, hide_index=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- KHU VỰC 2: PIE CHART VÀ FALSE POSITIVE ĐƯỢC ĐẨY XUỐNG DƯỚI ---
