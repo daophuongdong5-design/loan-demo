@@ -162,10 +162,10 @@ st.dataframe(
     .style
     .apply(style_df, axis=1)
     .format({
-        'Monthly Income': '{:.1f}',
-        'Monthly Expenses': '{:.1f}',
-        'Loan Amount': '{:.1f}',
-        'Employment Years': '{:.1f}'
+        'Monthly Income': '{:.2f}',
+        'Monthly Expenses': '{:.2f}',
+        'Loan Amount': '{:.2f}',
+        'Employment Years': '{:.2f}'
     }),
     use_container_width=True,
     hide_index=True
