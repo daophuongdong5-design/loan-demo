@@ -157,7 +157,16 @@ def style_df(row):
     except: pass
     return colors
 
-st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1), use_container_width=True, hide_index=True)
+# Khai báo 4 cột cần hiển thị 1 số sau dấu phẩy
+    format_cols = ['Monthly Income', 'Monthly Expenses', 'Loan Amount', 'Employment Years']
+    
+    # Đảm bảo dữ liệu là dạng số để Pandas format không bị lỗi
+    for col in format_cols:
+        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
+        
+    # Áp dụng format .1f (1 chữ số thập phân)
+    format_dict = {col: "{:.1f}" for col in format_cols}
+    st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1).format(format_dict, na_rep=""), use_container_width=True, hide_index=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
