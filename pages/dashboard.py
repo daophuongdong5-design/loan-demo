@@ -157,7 +157,22 @@ def style_df(row):
     except: pass
     return colors
 
-st.dataframe(filtered_df[display_cols].style.apply(style_df, axis=1), use_container_width=True, hide_index=True)
+# Ép kiểu dữ liệu về dạng số (bắt buộc để tránh lỗi mất bảng)
+    for col in ['Monthly Income', 'Monthly Expenses', 'Loan Amount', 'Employment Years']:
+        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
+
+    # Dùng tính năng column_config để ép giao diện hiển thị 1 số sau dấu phẩy
+    st.dataframe(
+        filtered_df[display_cols].style.apply(style_df, axis=1), 
+        use_container_width=True, 
+        hide_index=True,
+        column_config={
+            "Monthly Income": st.column_config.NumberColumn(format="%.1f"),
+            "Monthly Expenses": st.column_config.NumberColumn(format="%.1f"),
+            "Loan Amount": st.column_config.NumberColumn(format="%.1f"),
+            "Employment Years": st.column_config.NumberColumn(format="%.1f")
+        }
+    )
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- KHU VỰC 2: PIE CHART VÀ FALSE POSITIVE ĐƯỢC ĐẨY XUỐNG DƯỚI ---
