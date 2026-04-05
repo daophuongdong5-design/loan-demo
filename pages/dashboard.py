@@ -114,12 +114,19 @@ pct_rejected = (len(df[df['Final Decision'] == 'Reject']) / total_apps * 100) if
 false_positive_df = df[(df['Model decision'] == 'Approve') & (df['Rule Decision'] == 'Reject')]
 pct_false_positive = (len(false_positive_df) / total_apps * 100) if total_apps > 0 else 0
 
-# Metric Cards
-m1, m2, m3, m4 = st.columns(4)
+# --- THÊM CHỈ SỐ LOW ML PROB Ở ĐÂY ---
+ml_threshold = 0.5 # Ngưỡng Reject ML Prob mới nhất của bạn
+df['ML_prob_numeric'] = pd.to_numeric(df['ML probability'], errors='coerce').fillna(1.0)
+pct_low_ml = (len(df[df['ML_prob_numeric'] < ml_threshold]) / total_apps * 100) if total_apps > 0 else 0
+
+# Metric Cards (Đổi thành 5 cột)
+m1, m2, m3, m4, m5 = st.columns(5)
 m1.markdown(f'<div class="metric-card"><div class="metric-title">📑 TOTAL APPLICATIONS</div><div class="metric-value">{total_apps}</div></div>', unsafe_allow_html=True)
 m2.markdown(f'<div class="metric-card"><div class="metric-title">🔔 TOTAL ALERTS</div><div class="metric-value">{total_alerts}</div></div>', unsafe_allow_html=True)
 m3.markdown(f'<div class="metric-card"><div class="metric-title">⚠️ % REJECTED</div><div class="metric-value"><span class="sub-red">{pct_rejected:.1f}%</span></div></div>', unsafe_allow_html=True)
 m4.markdown(f'<div class="metric-card"><div class="metric-title">⚠️ % FALSE POSITIVES</div><div class="metric-value"><span class="sub-yellow">{pct_false_positive:.1f}%</span></div></div>', unsafe_allow_html=True)
+# Thẻ thứ 5
+m5.markdown(f'<div class="metric-card"><div class="metric-title">🤖 % LOW ML PROB</div><div class="metric-value"><span class="sub-red">{pct_low_ml:.1f}%</span></div></div>', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -148,13 +155,30 @@ display_cols = [
 
 def style_df(row):
     colors = [''] * len(row)
-    if row['Alert Type'] == 'High Risk': bg = 'background-color: rgba(255, 75, 75, 0.1); color: #ff4b4b;'
-    elif row['Alert Type'] == 'Borderline': bg = 'background-color: rgba(250, 202, 43, 0.1); color: #faca2b;'
-    else: bg = ''
+    
+    # 1. Tô màu Alert Type và Severity
     try:
+        if row['Alert Type'] == 'High Risk': bg = 'background-color: rgba(255, 75, 75, 0.1); color: #ff4b4b;'
+        elif row['Alert Type'] == 'Borderline': bg = 'background-color: rgba(250, 202, 43, 0.1); color: #faca2b;'
+        else: bg = ''
         colors[row.index.get_loc('Alert Type')] = bg
         colors[row.index.get_loc('Severity')] = bg
     except: pass
+    
+    # 2. Tô màu Final Decision
+    try:
+        decision = str(row['Final Decision'])
+        if decision == 'Approve': 
+            dec_color = 'color: #28a745; font-weight: bold;' # Xanh lá cây
+        elif decision in ['Manual Review', 'Partial Approve']: 
+            dec_color = 'color: #faca2b; font-weight: bold;' # Vàng
+        elif decision == 'Reject': 
+            dec_color = 'color: #ff4b4b; font-weight: bold;' # Đỏ
+        else: 
+            dec_color = ''
+        colors[row.index.get_loc('Final Decision')] = dec_color
+    except: pass
+    
     return colors
 
 st.dataframe(
