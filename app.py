@@ -379,15 +379,23 @@ if run:
         proba = credit_model.predict_proba(X)[0]
         prob = float(proba[1])
 
-    st.write(f"ML Prob (Loan Status) = {round(prob, 2)}")
-
     log_record["ML probability"] = round(prob, 4)
     # ML Approve chỉ khi prob >= 0.5
     log_record["Model decision"] = "Approve" if prob >= 0.5 else "Reject"
 
-    # Rule 4.3: Xác suất < 0.5 là Reject
+    # 1. In kết quả trực quan (Xanh lá / Đỏ)
     if prob < 0.5:
         st.error(f"ML Prob = {round(prob, 2)} → ❌ Reject (< 0.5)")
+    else:
+        st.success(f"ML Prob = {round(prob, 2)} → ✅ Pass (>= 0.5)")
+
+    # 2. Đưa thanh Expander xuống bên dưới kết quả ML
+    if credit_model is not None:
+        with st.expander("🔍 Click để xem chi tiết Dữ liệu đầu vào của ML Model (X.T)"):
+            st.dataframe(X.T, use_container_width=True)
+
+    # 3. Dừng ứng dụng nếu điểm ML quá thấp (phải đặt ở đây để UI ở trên kịp hiện ra)
+    if prob < 0.5:
         log_and_stop(f"ML Prob too low ({round(prob, 2)} < 0.5)", rule_dec="Pass")
 
     # =============================
