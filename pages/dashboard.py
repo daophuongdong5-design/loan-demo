@@ -131,6 +131,54 @@ m5.markdown(f'<div class="metric-card"><div class="metric-title">🤖 % LOW ML P
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
+# 3.5 BỔ SUNG BIỂU ĐỒ ANALYTICS (TREND & DISTRIBUTION)
+# ==========================================
+st.markdown("---") 
+st.subheader("Analytics Overview")
+
+col_trend, col_dist = st.columns(2)
+
+with col_trend:
+    # 1. Biểu đồ Time-Series Trend
+    df['Datetime'] = pd.to_datetime(df['Timestamp'], errors='coerce')
+    trend_df = df.dropna(subset=['Datetime']).copy()
+    
+    trend_df['Time_Label'] = trend_df['Datetime'].dt.strftime('%H:%M')
+    volume_trend = trend_df.groupby('Time_Label').size().reset_index(name='Volume')
+    
+    if not volume_trend.empty:
+        fig_trend = px.line(
+            volume_trend, x='Time_Label', y='Volume', markers=True,
+            labels={'Time_Label': 'Thời gian (Giờ:Phút)', 'Volume': 'Số lượng hồ sơ nộp'},
+            title='Application Volume Trend'
+        )
+        fig_trend.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="black")
+        fig_trend.update_traces(line_color='#00bfff', line_width=3, marker_size=8)
+        st.plotly_chart(fig_trend, use_container_width=True)
+    else:
+        st.info("Chưa đủ dữ liệu thời gian để vẽ Trend.")
+
+with col_dist:
+    # 2. Biểu đồ ML Probability Distribution
+    df['ML_prob_numeric'] = pd.to_numeric(df['ML probability'], errors='coerce').fillna(0)
+    
+    fig_dist = px.histogram(
+        df, x='ML_prob_numeric', color='Final Decision',
+        nbins=20, 
+        labels={'ML_prob_numeric': 'ML Probability Score', 'Final Decision': 'Kết quả'},
+        title='ML Probability Distribution',
+        color_discrete_map={
+            'Approve': '#28a745', 
+            'Partial Approve': '#faca2b', 
+            'Manual Review': '#faca2b', 
+            'Reject': '#ff4b4b'
+        }
+    )
+    fig_dist.update_layout(barmode='stack', paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="black")
+    st.plotly_chart(fig_dist, use_container_width=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+# ==========================================
 # 4. BẢNG DỮ LIỆU & BIỂU ĐỒ (ĐÃ ĐƯỢC BỐ TRÍ LẠI LAYOUT)
 # ==========================================
 
