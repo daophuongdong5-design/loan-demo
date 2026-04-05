@@ -240,7 +240,7 @@ with col_trend:
     if not volume_trend.empty:
         fig_trend = px.line(
             volume_trend, x='Time_Label', y='Volume', markers=True,
-            labels={'Time_Label': 'Thời gian (Giờ:Phút)', 'Volume': 'Số lượng hồ sơ nộp'},
+            labels={'Time_Label': 'Timestamp', 'Volume': 'Number of applications'},
             title='Application Volume Trend'
         )
         fig_trend.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="black")
@@ -256,7 +256,7 @@ with col_dist:
     fig_dist = px.histogram(
         df, x='ML_prob_numeric', color='Final Decision',
         nbins=20, 
-        labels={'ML_prob_numeric': 'ML Probability Score', 'Final Decision': 'Kết quả'},
+        labels={'ML_prob_numeric': 'ML Probability Score', 'Final Decision': 'Result'},
         title='ML Probability Distribution',
         color_discrete_map={
             'Approve': '#28a745', 
