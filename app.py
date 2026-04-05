@@ -371,9 +371,6 @@ if run:
         
         X = X[MODEL_FEATURES]
         
-        # --- BẮT ĐẦU ĐOẠN THÊM MỚI ---
-        with st.expander("🔍 Click để xem chi tiết Dữ liệu đầu vào của ML Model (X.T)"):
-            st.dataframe(X.T, use_container_width=True) # Dùng st.dataframe đẹp hơn st.write
         # --- KẾT THÚC ĐOẠN THÊM MỚI ---
 
         proba = credit_model.predict_proba(X)[0]
