@@ -11,14 +11,14 @@ def load_data():
         df = pd.read_sql("SELECT * FROM decision_log", con=engine)
         
         # Đảm bảo các cột mới tồn tại để tránh lỗi nếu DB cũ chưa cập nhật
-        required_cols = ['Timestamp', 'Monthly Expenses', 'Employment Years', 'Employment Status']
+        required_cols = ['Timestamp', 'Monthly Expenses', 'Employment Years', 'Employment Status', 'Customer Type']
         for col in required_cols:
             if col not in df.columns:
                 df[col] = ""
 
         # Ép kiểu dữ liệu để tránh lỗi PyArrow
         if not df.empty:
-            text_cols = ['Timestamp', 'Customer', 'National ID', 'Employment Status', 'Final Decision', 'Reject Reason']
+            text_cols = ['Timestamp', 'Customer', 'National ID', 'Employment Status', 'Final Decision', 'Reject Reason', 'Customer Type']
             for col in text_cols:
                 if col in df.columns:
                     df[col] = df[col].fillna("").astype(str)
@@ -148,7 +148,7 @@ if filter_severity != "All": filtered_df = filtered_df[filtered_df['Severity'] =
 if filter_decision != "All": filtered_df = filtered_df[filtered_df['Final Decision'] == filter_decision]
 
 display_cols = [
-    'Timestamp', 'National ID', 'Customer', 
+    'Timestamp', 'National ID', 'Customer', 'Customer Type', # Thêm ở đây
     'Monthly Income', 'Monthly Expenses', 'Loan Amount', 
     'Employment Years', 'Employment Status', 
     'DTI_2', 'ML probability', 'Alert Type', 'Severity', 'Final Decision', 'Reject Reason'
