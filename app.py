@@ -224,16 +224,16 @@ if run:
     else:
         st.success("Blacklist = 0 → ✅ Pass")
 
-    # =============================
+# =============================
     # LAYER 3: DPD & CIC Score
     # =============================
     st.subheader("Layer 3: CIC & DPD")
     
-    if max_dpd30 == 1:
-        st.error(f"DPD30 = {max_dpd30} → ❌ Reject")
-        log_and_stop(f"Max DPD30 = {max_dpd30}")
+    if max_dpd30 > 30:
+        st.error(f"Max DPD = {max_dpd30} → ❌ Reject (> 30)")
+        log_and_stop(f"Max DPD = {max_dpd30} (> 30)")
     else:
-        st.success(f"DPD30 = {max_dpd30} → ✅ Pass")
+        st.success(f"Max DPD = {max_dpd30} → ✅ Pass")
 
     if credit_score is None:
         st.warning("CIC Score = NULL → ⚠️ No data, check other conditions")
